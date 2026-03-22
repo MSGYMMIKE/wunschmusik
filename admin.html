@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wunschmusik – Admin</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#090909;color:#f2f0ec;font-family:'DM Sans',system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  #gateWrap{width:100%;max-width:360px;text-align:center}
+  .gate-logo{font-family:'Bebas Neue',sans-serif;font-size:40px;letter-spacing:3px;background:linear-gradient(135deg,#1DB954,#4dff91);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px}
+  .gate-sub{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#444;margin-bottom:28px}
+  #gateInput{width:100%;background:#111;border:1.5px solid #2a2a2a;border-radius:12px;padding:14px 18px;font-size:16px;font-family:'DM Sans',sans-serif;color:#f0f0f0;outline:none;margin-bottom:10px;text-align:center;letter-spacing:4px;transition:border-color .2s}
+  #gateInput:focus{border-color:#1DB954}
+  .gate-err{color:#e05252;font-size:12px;margin-bottom:10px;min-height:18px}
+  .card{background:#111;border:1px solid #222;border-radius:20px;padding:32px 28px 26px;width:100%;max-width:460px;display:none}
+  .logo{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:3px;background:linear-gradient(135deg,#1DB954,#4dff91);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:4px;text-align:center}
+  .subtitle{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#444;margin-bottom:20px;text-align:center}
+  .badges{display:flex;gap:8px;justify-content:center;margin-bottom:14px;flex-wrap:wrap}
+  .badge{display:inline-flex;align-items:center;gap:5px;border-radius:100px;padding:4px 12px;font-size:11px}
+  .badge-green{background:rgba(29,185,84,.1);border:1px solid rgba(29,185,84,.25);color:#1DB954}
+  .badge-warn{background:rgba(240,192,64,.1);border:1px solid rgba(240,192,64,.25);color:#f0c040}
+  .badge-dot{width:6px;height:6px;border-radius:50%}
+  .badge-green .badge-dot{background:#1DB954;animation:blink 2s ease-in-out infinite}
+  .badge-warn .badge-dot{background:#f0c040}
+  .status-box{background:#0a0a0a;border:1px solid #222;border-radius:12px;padding:14px;margin-bottom:12px;display:flex;align-items:center;gap:12px}
+  .s-icon{font-size:24px;flex-shrink:0}
+  .s-info{flex:1}
+  .s-title{font-size:13px;font-weight:600;color:#ddd;margin-bottom:2px}
+  .s-sub{font-size:11px;color:#555}
+  .s-sub.green{color:#1DB954}
+  .info-row{background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:9px 14px;margin-bottom:7px;display:flex;justify-content:space-between;align-items:center;font-size:12px}
+  .info-row span:first-child{color:#555}
+  .ival{color:#ddd;font-weight:600}
+  .ival.green{color:#1DB954!important}
+  .ival.red{color:#e05252!important}
+  .divider{border:none;border-top:1px solid #1a1a1a;margin:16px 0}
+  .btn{display:block;padding:13px;border-radius:12px;font-size:14px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;border:none;width:100%;margin-bottom:9px;transition:background .2s,opacity .15s,transform .1s;text-align:center;text-decoration:none}
+  .btn:active:not(:disabled){transform:scale(.98)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn-green{background:#1DB954;color:#000}
+  .btn-green:hover:not(:disabled){background:#22e566}
+  .btn-dark{background:#1a6e37;color:#4dff91}
+  .btn-dark:hover:not(:disabled){background:#1f8040}
+  .btn-outline{background:none;color:#1DB954;border:1px solid rgba(29,185,84,.3);font-size:13px}
+  .btn-outline:hover:not(:disabled){background:rgba(29,185,84,.08);border-color:#1DB954}
+  .btn-back{color:#444;border:1px solid #222;font-size:13px;background:none}
+  .btn-back:hover{border-color:#444;color:#888}
+  .msg{margin-top:12px;padding:11px 14px;border-radius:10px;font-size:12px;display:none;text-align:left;line-height:1.5}
+  .device-row{display:flex;gap:8px;margin-bottom:9px}
+  .device-row select{flex:1;background:#0a0a0a;border:1.5px solid #1a1a1a;border-radius:10px;padding:9px 12px;font-size:12px;font-family:'DM Sans',sans-serif;color:#ddd;outline:none;cursor:pointer;transition:border-color .2s}
+  .device-row select:focus{border-color:#1DB954}
+  .device-row select:disabled{opacity:.4}
+  .dev-refresh{background:#0a0a0a;border:1.5px solid #1a1a1a;border-radius:10px;padding:9px 12px;cursor:pointer;color:#555;font-size:15px;transition:all .2s;flex-shrink:0}
+  .dev-refresh:hover:not(:disabled){border-color:#1DB954;color:#1DB954}
+  .dev-refresh:disabled{opacity:.4;cursor:not-allowed}
+  .now-playing{background:linear-gradient(135deg,#0d2b1a,#0a1f12);border:1px solid rgba(29,185,84,.25);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;margin-bottom:9px}
+  .np-art{width:44px;height:44px;border-radius:7px;object-fit:cover;flex-shrink:0;background:#222}
+  .np-info{flex:1;min-width:0}
+  .np-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#1DB954;margin-bottom:2px}
+  .np-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .np-artist{font-size:11px;color:#555}
+  .np-pulse{width:8px;height:8px;background:#1DB954;border-radius:50%;flex-shrink:0;animation:pulse 1.5s ease-in-out infinite}
+  .qm-box{background:#0a0a0a;border:1px solid #1a1a1a;border-radius:12px;padding:12px 14px;margin-top:14px}
+  .qm-head{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#444;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+  .qm-clear{background:none;border:none;color:#e05252;font-size:11px;font-family:'DM Sans',sans-serif;cursor:pointer;opacity:.6;transition:opacity .2s}
+  .qm-clear:hover{opacity:1}
+  .qm-item{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #111;animation:fadeIn .2s ease both}
+  .qm-item:last-child{border-bottom:none}
+  .qm-num{color:#1DB954;font-family:'Bebas Neue',sans-serif;font-size:16px;width:16px;flex-shrink:0}
+  .qm-art{width:32px;height:32px;border-radius:4px;object-fit:cover;background:#222;flex-shrink:0}
+  .qm-info{flex:1;min-width:0}
+  .qm-name{font-size:12px;color:#ccc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .qm-artist{font-size:10px;color:#444}
+  .qm-del{background:none;border:none;color:#333;font-size:18px;cursor:pointer;padding:0 4px;transition:color .2s;line-height:1}
+  .qm-del:hover{color:#e05252}
+  .qm-del:disabled{opacity:.3;cursor:not-allowed}
+  .qm-empty{color:#333;font-size:12px;text-align:center;padding:12px 0}
+  .qm-sent-note{font-size:10px;color:#555;font-style:italic}
+  .singleton-warn{background:rgba(240,192,64,.08);border:1px solid rgba(240,192,64,.3);border-radius:10px;padding:10px 14px;font-size:12px;color:#f0c040;margin-bottom:12px;display:none;line-height:1.5}
+  .spin-i{display:inline-block;width:12px;height:12px;border:2px solid #333;border-top-color:#1DB954;border-radius:50%;animation:spin .7s linear infinite;margin-right:6px;vertical-align:middle}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.75)}}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+
+<!-- PASSWORD GATE -->
+<div id="gateWrap">
+  <div class="gate-logo">🎵 WUNSCHMUSIK</div>
+  <div class="gate-sub">Admin – Zugangscode</div>
+  <div class="gate-err" id="gateErr"></div>
+  <input type="password" id="gateInput" placeholder="••••••" maxlength="30" autocomplete="current-password"/>
+  <button class="btn btn-green" id="gateBtn" onclick="checkGate()">Weiter →</button>
+</div>
+
+<!-- ADMIN PANEL -->
+<div class="card" id="adminCard">
+  <div class="logo">🎵 WUNSCHMUSIK</div>
+  <div class="subtitle">Admin – Studio Verbindung</div>
+  <div class="singleton-warn" id="singletonWarn">⚠️ Ein anderer Admin-Tab ist bereits aktiv. Bitte nur einen Tab gleichzeitig offen halten.</div>
+  <div class="badges" id="badgesWrap" style="display:none">
+    <div class="badge badge-green"><div class="badge-dot"></div>Auto-Refresh aktiv</div>
+    <div class="badge badge-green"><div class="badge-dot"></div>Playback-Controller aktiv</div>
+  </div>
+  <div id="npWrap" style="display:none"></div>
+  <div class="device-row" id="deviceRow" style="display:none">
+    <select id="deviceSelect"><option value="">🎧 Gerät wählen…</option></select>
+    <button class="dev-refresh" id="devRefBtn" onclick="loadDevices()" title="Aktualisieren">↻</button>
+  </div>
+  <div class="status-box">
+    <div class="s-icon" id="sIcon">⏳</div>
+    <div class="s-info">
+      <div class="s-title" id="sTitle">Prüfe Verbindung…</div>
+      <div class="s-sub"   id="sSub">Bitte warten</div>
+    </div>
+  </div>
+  <div class="info-row"><span>Token Status</span>         <span class="ival" id="iStatus">–</span></div>
+  <div class="info-row"><span>Läuft ab</span>              <span class="ival" id="iExpiry">–</span></div>
+  <div class="info-row"><span>Nächster Auto-Refresh</span> <span class="ival" id="iNext">–</span></div>
+  <div class="info-row"><span>Zuletzt gespeichert</span>   <span class="ival" id="iUpdated">–</span></div>
+  <hr class="divider"/>
+  <button class="btn btn-green"   id="btnLogin"   onclick="startLogin()">🎵 Mit Spotify verbinden</button>
+  <button class="btn btn-outline" id="btnRefresh" onclick="doRefresh()" style="display:none">🔄 Token jetzt erneuern</button>
+  <a href="https://studio-wunschmusik.netlify.app" class="btn btn-back">← Zurück zur App</a>
+  <div class="msg" id="msg"></div>
+  <div class="qm-box">
+    <div class="qm-head"><span>🎵 Warteschlange</span><button class="qm-clear" onclick="adminClearQueue()">Alles löschen</button></div>
+    <div id="qmList"><div class="qm-empty">Keine Songs</div></div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────────────────────────────────────────
+const CLIENT_ID     = '09a4629ec6654363987f901734d6d9db';
+const REDIRECT_URI  = 'https://studio-wunschmusik.netlify.app/admin.html';
+const SCOPES        = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
+const REFRESH_MS    = 50 * 60 * 1000;
+const HEARTBEAT_MS  = 8 * 1000;
+const HEARTBEAT_TTL = 12 * 1000; // FIX D-05: shorter TTL (was 20s) so members detect admin-down faster
+// Password: studio2024
+// To change: crypto.subtle.digest('SHA-256',new TextEncoder().encode('NEWPW')).then(b=>console.log([...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')))
+const ADMIN_HASH = '0daab506bc7b67801525e210c0a0325f8296bac8485d75c7d5466425abb7de0a';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FIREBASE
+// ─────────────────────────────────────────────────────────────────────────────
+firebase.initializeApp({
+  apiKey:     'AIzaSyDquSCF2mwYMnsdEdsCXF-amq0nk-ZbvvQ',
+  authDomain: 'msgym-d2a85.firebaseapp.com',
+  projectId:  'msgym-d2a85'
+});
+const db = firebase.firestore();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────────────────
+let accessToken      = null;
+let autoRefreshTimer = null;
+let nextRefreshAt    = null;
+let countdownTimer   = null;
+let pollTimer        = null;
+let heartbeatTimer   = null;
+let singletonTimer   = null; // FIX D-06: single reference to avoid duplicate intervals
+let sharedQueue      = [];
+let unsubQueue       = null;
+let loginInProgress  = false;
+let silentFailCount  = 0;
+let lastNpId         = null;
+let npWriteTimer     = null;
+const ADMIN_TAB_ID   = Math.random().toString(36).slice(2);
+
+// Playback state
+let currentlyPlayingId = null;
+// FIX D-01: queuedTrackIds persisted – initialized from Firebase on start
+// to prevent duplicate adds after admin tab reload
+let queuedTrackIds     = [];
+let addingToSpotify    = false;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PASSWORD GATE
+// ─────────────────────────────────────────────────────────────────────────────
+document.getElementById('gateInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkGate();
+});
+
+async function checkGate() {
+  const btn = document.getElementById('gateBtn');
+  const val = document.getElementById('gateInput').value;
+  if (!val || btn.disabled) return;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin-i"></span>Prüfe…';
+  try {
+    const buf  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(val));
+    const hash = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,'0')).join('');
+    if (hash === ADMIN_HASH) {
+      sessionStorage.setItem('admin_ok','1');
+      showAdminPanel();
+    } else {
+      document.getElementById('gateErr').textContent = '❌ Falscher Code';
+      document.getElementById('gateInput').value = '';
+      document.getElementById('gateInput').focus();
+      btn.disabled = false;
+      btn.textContent = 'Weiter →';
+    }
+  } catch(e) {
+    document.getElementById('gateErr').textContent = '❌ Fehler – bitte neu laden';
+    btn.disabled = false;
+    btn.textContent = 'Weiter →';
+  }
+}
+
+function showAdminPanel() {
+  document.getElementById('gateWrap').style.display  = 'none';
+  document.getElementById('adminCard').style.display = 'block';
+  init();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SINGLETON GUARD (FIX D-06: single interval reference)
+// ─────────────────────────────────────────────────────────────────────────────
+async function startHeartbeat() {
+  await writeHeartbeat();
+  clearInterval(heartbeatTimer);
+  heartbeatTimer = setInterval(writeHeartbeat, HEARTBEAT_MS);
+}
+
+async function writeHeartbeat() {
+  try {
+    await db.collection('state').doc('admin-heartbeat').set({
+      tabId: ADMIN_TAB_ID, alive: Date.now(), updated: new Date().toISOString()
+    });
+  } catch(e) {}
+}
+
+async function checkSingleton() {
+  try {
+    const snap = await db.collection('state').doc('admin-heartbeat').get();
+    if (!snap.exists) return;
+    const d = snap.data();
+    const isOther  = d.tabId !== ADMIN_TAB_ID;
+    const isRecent = (Date.now() - d.alive) < HEARTBEAT_TTL;
+    document.getElementById('singletonWarn').style.display = (isOther && isRecent) ? 'block' : 'none';
+  } catch(e) {}
+}
+
+function startSingletonCheck() {
+  // FIX D-06: always clear before creating new interval
+  clearInterval(singletonTimer);
+  singletonTimer = setInterval(checkSingleton, 15000);
+}
+
+// FIX D-05: beforeunload cannot reliably run async code.
+// Solution: use shorter TTL (12s) + write a synchronous-style cleanup via fetch keepalive.
+// Members will auto-detect admin offline within 12s via heartbeat TTL.
+window.addEventListener('beforeunload', () => {
+  clearInterval(heartbeatTimer);
+  clearInterval(pollTimer);
+  clearInterval(singletonTimer);
+  // Best-effort sync cleanup using fetch keepalive (browser will send even after page unloads)
+  try {
+    const token = accessToken;
+    if (!token) return;
+    // Write heartbeat=dead via Firestore REST API with keepalive
+    fetch(
+      `https://firestore.googleapis.com/v1/projects/msgym-d2a85/databases/(default)/documents/state/admin-heartbeat`,
+      {
+        method: 'PATCH',
+        keepalive: true,
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          fields: {
+            tabId: { nullValue: null },
+            alive: { integerValue: '0' }
+          }
+        })
+      }
+    ).catch(() => {});
+  } catch(e) {}
+});
+
+window.addEventListener('pageshow', e => {
+  if (e.persisted) loginInProgress = false;
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PKCE
+// ─────────────────────────────────────────────────────────────────────────────
+function randStr(n) {
+  const c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+  return [...crypto.getRandomValues(new Uint8Array(n))].map(b => c[b % c.length]).join('');
+}
+async function pkceChallenge(v) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v));
+  return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOGIN
+// ─────────────────────────────────────────────────────────────────────────────
+async function startLogin() {
+  if (loginInProgress) return;
+  loginInProgress = true;
+  const btn = document.getElementById('btnLogin');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin-i"></span>Weiterleitung…';
+  const verifier  = randStr(64);
+  const state     = randStr(16);
+  const challenge = await pkceChallenge(verifier);
+  ['localStorage','sessionStorage'].forEach(s => {
+    window[s].setItem('pkce_v', verifier);
+    window[s].setItem('pkce_s', state);
+  });
+  window.location.href =
+    'https://accounts.spotify.com/authorize'
+    + '?client_id='            + CLIENT_ID
+    + '&response_type=code'
+    + '&redirect_uri='         + encodeURIComponent(REDIRECT_URI)
+    + '&scope='                + encodeURIComponent(SCOPES)
+    + '&code_challenge_method=S256'
+    + '&code_challenge='       + challenge
+    + '&state='                + state
+    + '&show_dialog=true';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OAUTH CALLBACK
+// ─────────────────────────────────────────────────────────────────────────────
+async function handleCode(code, retState) {
+  const savedState = localStorage.getItem('pkce_s') || sessionStorage.getItem('pkce_s');
+  if (!savedState || savedState !== retState) {
+    showMsg('error','❌ Sicherheitsfehler: Ungültige Sitzung. Bitte Login neu starten.');
+    setS('❌','Sicherheitsfehler','Login neu starten');
+    return;
+  }
+  const verifier = localStorage.getItem('pkce_v') || sessionStorage.getItem('pkce_v');
+  if (!verifier) {
+    showMsg('error','❌ Sitzung abgelaufen. Bitte nochmal auf "Mit Spotify verbinden" klicken.');
+    setS('❌','Sitzung abgelaufen','Erneut versuchen');
+    return;
+  }
+  history.replaceState({}, '', location.pathname);
+  setS('⏳','Verbinde…','Token wird ausgetauscht');
+  document.getElementById('btnLogin').innerHTML = '<span class="spin-i"></span>Verbinde…';
+  document.getElementById('btnLogin').disabled  = true;
+  try {
+    const r = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {'Content-Type':'application/x-www-form-urlencoded'},
+      body: new URLSearchParams({
+        grant_type: 'authorization_code', code,
+        redirect_uri: REDIRECT_URI, client_id: CLIENT_ID, code_verifier: verifier
+      })
+    });
+    const d = await r.json();
+    if (d.access_token) {
+      ['pkce_v','pkce_s'].forEach(k => { localStorage.removeItem(k); sessionStorage.removeItem(k); });
+      accessToken = d.access_token;
+      await saveToken(d.access_token, d.refresh_token, d.expires_in);
+      showOK('✅ Verbunden! Auto-Refresh und Playback aktiv.');
+      await loadStatus();
+      startAutoRefresh();
+      startQueueMonitor();
+      startPoll();
+      await startHeartbeat();
+      await loadDevices();
+      onConnected();
+      startSingletonCheck(); // FIX D-06: use single reference
+    } else {
+      showMsg('error','❌ ' + (d.error_description || d.error || JSON.stringify(d)));
+      setS('❌','Fehlgeschlagen', d.error || '');
+      resetLoginBtn();
+    }
+  } catch(e) {
+    showMsg('error','❌ Netzwerkfehler: ' + e.message);
+    setS('❌','Netzwerkfehler', e.message);
+    resetLoginBtn();
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOKEN REFRESH
+// ─────────────────────────────────────────────────────────────────────────────
+async function doRefresh(silent = false) {
+  const btn = document.getElementById('btnRefresh');
+  if (!silent) { btn.innerHTML = '<span class="spin-i"></span>Erneuere…'; btn.disabled = true; }
+  try {
+    const snap = await db.collection('config').doc('spotify').get();
+    const ref  = snap.exists ? snap.data().refresh : null;
+    if (!ref) {
+      if (!silent) showMsg('error','❌ Kein Refresh-Token – bitte neu verbinden.');
+      return false;
+    }
+    const r = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {'Content-Type':'application/x-www-form-urlencoded'},
+      body: new URLSearchParams({ grant_type:'refresh_token', refresh_token:ref, client_id:CLIENT_ID })
+    });
+    const d = await r.json();
+    if (d.access_token) {
+      accessToken = d.access_token;
+      await saveToken(d.access_token, d.refresh_token || ref, d.expires_in);
+      silentFailCount = 0;
+      if (!silent) { showOK('✅ Token erneuert! Gültig für 60 Minuten.'); await loadStatus(); }
+      return true;
+    } else {
+      silentFailCount++;
+      if (!silent) showMsg('error','❌ ' + (d.error_description || d.error) + ' — Bitte neu verbinden.');
+      if (silent && silentFailCount >= 3) {
+        setS('⚠️','Auto-Refresh fehlgeschlagen','Bitte manuell erneuern');
+        showMsg('error','⚠️ Token konnte 3x nicht erneuert werden. Bitte neu verbinden.');
+      }
+      return false;
+    }
+  } catch(e) {
+    silentFailCount++;
+    if (!silent) showMsg('error','❌ ' + e.message);
+    return false;
+  } finally {
+    if (!silent) { btn.innerHTML = '🔄 Token jetzt erneuern'; btn.disabled = false; }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTO-REFRESH
+// ─────────────────────────────────────────────────────────────────────────────
+function startAutoRefresh() {
+  clearInterval(autoRefreshTimer);
+  clearInterval(countdownTimer);
+  nextRefreshAt = Date.now() + REFRESH_MS;
+  document.getElementById('badgesWrap').style.display = 'flex';
+  autoRefreshTimer = setInterval(async () => {
+    const ok = await doRefresh(true);
+    if (ok) { nextRefreshAt = Date.now() + REFRESH_MS; await loadStatus(); }
+  }, REFRESH_MS);
+  countdownTimer = setInterval(() => {
+    const el = document.getElementById('iNext');
+    if (el && nextRefreshAt) el.textContent = 'in ' + Math.max(0, Math.round((nextRefreshAt - Date.now()) / 60000)) + ' Min.';
+  }, 30000);
+  const el = document.getElementById('iNext');
+  if (el) el.textContent = 'in 50 Min.';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FIREBASE WRITES
+// ─────────────────────────────────────────────────────────────────────────────
+async function saveToken(token, refresh, expiresIn) {
+  await db.collection('config').doc('spotify').set(
+    { token, refresh: refresh || '', expires: Date.now() + (expiresIn || 3600) * 1000, updated: new Date().toISOString() },
+    { merge: true }
+  );
+}
+
+async function saveQueue(retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      await db.collection('state').doc('queue').set({ tracks: sharedQueue, updated: Date.now() });
+      return true;
+    } catch(e) {
+      if (attempt === retries) {
+        console.error('saveQueue failed:', e);
+        showMsg('error','⚠️ Warteschlange konnte nicht gespeichert werden.');
+        return false;
+      }
+      await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QUEUE MONITOR
+// ─────────────────────────────────────────────────────────────────────────────
+function startQueueMonitor() {
+  if (unsubQueue) unsubQueue();
+  unsubQueue = db.collection('state').doc('queue').onSnapshot(snap => {
+    sharedQueue = snap.exists ? (snap.data().tracks || []) : [];
+    renderQM();
+  }, err => {
+    console.error('Queue listener:', err);
+    showMsg('error','⚠️ Queue-Verbindung unterbrochen. Bitte Seite neu laden.');
+  });
+}
+
+function renderQM() {
+  const list = document.getElementById('qmList');
+  if (!sharedQueue.length) {
+    list.innerHTML = '<div class="qm-empty">Keine Songs in der Warteschlange</div>';
+    return;
+  }
+  list.innerHTML = sharedQueue.map((t, i) => {
+    const alreadySent = queuedTrackIds.includes(t.id);
+    return `
+    <div class="qm-item">
+      <div class="qm-num">${i + 1}</div>
+      <img class="qm-art" src="${esc(t.album?.images?.[2]?.url || '')}" alt="" loading="lazy"/>
+      <div class="qm-info">
+        <div class="qm-name">${esc(t.name)}</div>
+        <div class="qm-artist">${esc(t.artists?.map(a => a.name).join(', '))}</div>
+        ${alreadySent ? '<div class="qm-sent-note">✓ An Spotify gesendet</div>' : ''}
+      </div>
+      <button class="qm-del" onclick="adminRemove(${i})"
+        title="${alreadySent ? 'Bereits an Spotify gesendet' : 'Entfernen'}">×</button>
+    </div>`;
+  }).join('');
+}
+
+// FIX H-01: double-click protection + FIX D-07: safer rollback
+let removingIndex = -1;
+async function adminRemove(i) {
+  if (removingIndex !== -1) return; // double-click protection
+  if (i < 0 || i >= sharedQueue.length) return;
+  removingIndex = i;
+
+  // FIX F-01: warn if song already sent to Spotify queue
+  const track = sharedQueue[i];
+  if (queuedTrackIds.includes(track.id)) {
+    const ok = await showConfirm(
+      `"${track.name}" wurde bereits an Spotify gesendet.\nEs wird trotzdem aus der App-Liste entfernt, spielt aber möglicherweise noch ab.`
+    );
+    if (!ok) { removingIndex = -1; return; }
+  }
+
+  // Snapshot before removal to avoid race with onSnapshot
+  const snapshot = [...sharedQueue];
+  sharedQueue.splice(i, 1);
+  queuedTrackIds = queuedTrackIds.filter(id => id !== track.id);
+  renderQM();
+
+  const ok = await saveQueue();
+  if (!ok) {
+    // Rollback using snapshot (FIX D-07: not the potentially-overwritten array)
+    sharedQueue = snapshot;
+    queuedTrackIds.push(track.id);
+    renderQM();
+    showMsg('error','❌ Entfernen fehlgeschlagen – bitte erneut versuchen.');
+  }
+  removingIndex = -1;
+}
+
+async function adminClearQueue() {
+  if (!sharedQueue.length) return;
+  const confirmed = await showConfirm('Gesamte Warteschlange löschen?\nDies betrifft alle Mitglieder sofort.');
+  if (!confirmed) return;
+  const backup      = [...sharedQueue];
+  const backupIds   = [...queuedTrackIds];
+  sharedQueue       = [];
+  queuedTrackIds    = [];
+  renderQM();
+  const ok = await saveQueue();
+  if (!ok) {
+    sharedQueue    = backup;
+    queuedTrackIds = backupIds;
+    renderQM();
+  }
+}
+
+function showConfirm(message) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px';
+    overlay.innerHTML = `
+      <div style="background:#1a1a1a;border:1px solid #333;border-radius:16px;padding:24px;max-width:320px;width:100%;text-align:center">
+        <div style="font-size:13px;color:#ddd;margin-bottom:20px;line-height:1.7;white-space:pre-line">${esc(message)}</div>
+        <div style="display:flex;gap:10px">
+          <button id="cNo"  style="flex:1;padding:11px;border-radius:10px;border:1px solid #333;background:none;color:#777;font-family:inherit;font-size:13px;cursor:pointer">Abbrechen</button>
+          <button id="cYes" style="flex:1;padding:11px;border-radius:10px;border:none;background:#e05252;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">OK</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#cYes').onclick = () => { document.body.removeChild(overlay); resolve(true); };
+    overlay.querySelector('#cNo').onclick  = () => { document.body.removeChild(overlay); resolve(false); };
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DEVICES
+// ─────────────────────────────────────────────────────────────────────────────
+async function loadDevices() {
+  if (!accessToken) return;
+  const sel = document.getElementById('deviceSelect');
+  const btn = document.getElementById('devRefBtn');
+  sel.disabled = true; btn.disabled = true; btn.textContent = '…';
+  try {
+    const res = await spFetch('https://api.spotify.com/v1/me/player/devices');
+    if (res.status === 401) {
+      const ok = await doRefresh(true);
+      if (ok) { sel.disabled = false; btn.disabled = false; btn.textContent = '↻'; await loadDevices(); return; }
+      showMsg('error','❌ Token abgelaufen – bitte erneuern');
+    } else if (!res.ok) {
+      showMsg('error','❌ Geräte-Fehler: HTTP ' + res.status);
+    } else {
+      const data  = await res.json();
+      const saved = localStorage.getItem('admin_device');
+      sel.innerHTML = '<option value="">🎧 Gerät wählen…</option>';
+      (data.devices || []).forEach(d => {
+        const o = document.createElement('option');
+        o.value = d.id;
+        o.textContent = (d.type === 'Computer' ? '💻' : '📱') + ' ' + d.name + (d.is_active ? ' ✓' : '');
+        if (d.id === saved || (!saved && d.is_active)) o.selected = true;
+        sel.appendChild(o);
+      });
+      sel.onchange = () => { if (sel.value) localStorage.setItem('admin_device', sel.value); };
+      btn.textContent = '✓'; btn.style.color = '#1DB954';
+      setTimeout(() => { btn.textContent = '↻'; btn.style.color = ''; }, 2000);
+      if (!data.devices?.length) showMsg('error','⚠️ Kein Gerät – Spotify auf Studio-PC öffnen.');
+    }
+  } catch(e) { showMsg('error','❌ Geräte-Fehler: ' + e.message); }
+  sel.disabled = false; btn.disabled = false;
+  if (btn.textContent === '…') btn.textContent = '↻';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POLL + PLAYBACK
+// Strategy: use POST /queue to add wish songs to Spotify's internal queue.
+// Spotify plays them after current song, then continues playlist naturally.
+// ─────────────────────────────────────────────────────────────────────────────
+function startPoll() {
+  clearInterval(pollTimer);
+  pollPlayer();
+  pollTimer = setInterval(pollPlayer, 3000);
+}
+
+async function pollPlayer() {
+  if (!accessToken) return;
+  try {
+    const res = await spFetch('https://api.spotify.com/v1/me/player');
+    if (res.status === 401) {
+      const ok = await doRefresh(true);
+      if (!ok) setS('⚠️','Token abgelaufen','Bitte erneuern');
+      return;
+    }
+    if (res.status === 204 || !res.ok) {
+      updateNP(null, 0, 0);
+      currentlyPlayingId = null;
+      return;
+    }
+    const data    = await res.json();
+    if (!data?.item) { updateNP(null, 0, 0); return; }
+
+    const trackId = data.item.id;
+    const prog    = data.progress_ms || 0;
+    const dur     = data.item.duration_ms || 1;
+
+    updateNP(data.item, prog, dur);
+
+    // FIX D-03: detect track change including same-song repeat via progress reset
+    const isNewTrack = trackId !== currentlyPlayingId;
+    if (isNewTrack) {
+      currentlyPlayingId = trackId;
+      // Remove from sharedQueue if this was a wished song
+      if (sharedQueue.length > 0 && sharedQueue[0]?.id === trackId) {
+        try {
+          sharedQueue.shift();
+          await saveQueue();
+        } catch(e) { console.error('Queue shift error:', e); }
+      }
+      // Clean up queuedTrackIds for this track
+      queuedTrackIds = queuedTrackIds.filter(id => id !== trackId);
+    }
+
+    // Sync any new wish songs to Spotify queue
+    await syncQueueToSpotify();
+
+  } catch(e) { /* network error – retry next poll */ }
+}
+
+// FIX D-01 + D-02: initialize queuedTrackIds from Firebase to prevent duplicates after reload
+// FIX D-02: take snapshot of sharedQueue to avoid race with onSnapshot
+async function syncQueueToSpotify() {
+  if (addingToSpotify) return;
+  const deviceId = document.getElementById('deviceSelect').value;
+  if (!deviceId) return;
+
+  // FIX D-02: snapshot prevents race condition with onSnapshot updates
+  const snapshot = [...sharedQueue];
+  const toAdd    = snapshot.filter(t => !queuedTrackIds.includes(t.id));
+  if (toAdd.length === 0) return;
+
+  addingToSpotify = true;
+  try {
+    for (const track of toAdd) {
+      const res = await spFetch(
+        `https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(track.uri)}&device_id=${deviceId}`,
+        { method: 'POST' }
+      );
+      if (res.status === 204 || res.ok) {
+        queuedTrackIds.push(track.id);
+        renderQM(); // update UI to show "✓ An Spotify gesendet"
+      } else {
+        const err = await res.json().catch(() => ({}));
+        console.error('Spotify queue add error:', err?.error?.message);
+        break; // retry on next poll
+      }
+      await new Promise(r => setTimeout(r, 200));
+    }
+  } catch(e) {
+    console.error('syncQueueToSpotify error:', e);
+  }
+  addingToSpotify = false;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NOW PLAYING
+// ─────────────────────────────────────────────────────────────────────────────
+function updateNP(item, prog, dur) {
+  const wrap = document.getElementById('npWrap');
+  if (!item) {
+    wrap.style.display = 'none';
+    if (lastNpId !== null) {
+      lastNpId = null;
+      clearTimeout(npWriteTimer);
+      db.collection('state').doc('nowplaying').set({
+        item: null, progressMs: 0, durationMs: 0, updated: Date.now()
+      }).catch(e => console.error('NP write null:', e));
+    }
+    return;
+  }
+  const art = item.album?.images?.[1]?.url || '';
+  wrap.style.display = 'block';
+  wrap.innerHTML = `<div class="now-playing">
+    <img class="np-art" src="${esc(art)}" alt=""/>
+    <div class="np-info">
+      <div class="np-label">▶ Wird gespielt</div>
+      <div class="np-name">${esc(item.name)}</div>
+      <div class="np-artist">${esc(item.artists?.map(a => a.name).join(', '))}</div>
+    </div>
+    <div class="np-pulse"></div>
+  </div>`;
+
+  const trackChanged = item.id !== lastNpId;
+  clearTimeout(npWriteTimer);
+  npWriteTimer = setTimeout(() => {
+    db.collection('state').doc('nowplaying').set({
+      item: {
+        id: item.id, name: item.name, uri: item.uri,
+        artists: item.artists?.map(a => ({ name: a.name })) || [],
+        album:   { images: item.album?.images || [] }
+      },
+      progressMs: prog,
+      durationMs: dur,
+      updated:    Date.now()
+    }).catch(e => console.error('NP write:', e));
+    lastNpId = item.id;
+  }, trackChanged ? 200 : 4000);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STATUS
+// ─────────────────────────────────────────────────────────────────────────────
+async function loadStatus() {
+  try {
+    const snap = await db.collection('config').doc('spotify').get();
+    if (!snap.exists) { setS('🎵','Nicht verbunden','Klicke unten zum Verbinden'); return; }
+    const d       = snap.data();
+    const valid   = d.expires > Date.now();
+    const minLeft = Math.max(0, Math.round((d.expires - Date.now()) / 60000));
+    const expStr  = d.expires ? new Date(d.expires).toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'}) : '–';
+    const updStr  = d.updated ? new Date(d.updated).toLocaleString('de-CH') : '–';
+    const iSt     = document.getElementById('iStatus');
+    iSt.textContent = valid ? 'Gültig ✓' : 'Abgelaufen ⚠️';
+    iSt.className   = 'ival ' + (valid ? 'green' : 'red');
+    document.getElementById('iExpiry').textContent  = expStr + (valid ? ` (noch ${minLeft} Min.)` : ' ⚠️');
+    document.getElementById('iUpdated').textContent = updStr;
+    document.getElementById('btnRefresh').style.display = 'block';
+    if (valid) onConnected();
+    else { setS('⚠️','Token abgelaufen','Bitte erneuern'); showMsg('error','⚠️ Token abgelaufen.'); }
+  } catch(e) { setS('❌','Firebase Fehler', e.message); }
+}
+
+function onConnected() {
+  setS('✅','Verbunden','Playback-Steuerung aktiv');
+  document.getElementById('sSub').className      = 's-sub green';
+  document.getElementById('btnLogin').textContent = '🔄 Neu verbinden';
+  document.getElementById('btnLogin').className   = 'btn btn-dark';
+  document.getElementById('btnLogin').disabled    = false;
+  document.getElementById('deviceRow').style.display = 'flex';
+  loginInProgress = false;
+}
+
+function resetLoginBtn() {
+  document.getElementById('btnLogin').innerHTML = '🎵 Mit Spotify verbinden';
+  document.getElementById('btnLogin').disabled  = false;
+  document.getElementById('btnLogin').className = 'btn btn-green';
+  loginInProgress = false;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+function setS(icon, title, sub) {
+  document.getElementById('sIcon').textContent  = icon;
+  document.getElementById('sTitle').textContent = title;
+  document.getElementById('sSub').textContent   = sub;
+  document.getElementById('sSub').className     = 's-sub';
+}
+function showMsg(type, text) {
+  const m = document.getElementById('msg');
+  m.style.display    = 'block';
+  m.style.color      = type === 'success' ? '#1DB954' : '#e05252';
+  m.style.background = type === 'success' ? 'rgba(29,185,84,0.06)' : 'rgba(224,82,82,0.06)';
+  m.style.border     = type === 'success' ? '1px solid rgba(29,185,84,0.2)' : '1px solid rgba(224,82,82,0.2)';
+  m.textContent = text;
+}
+function showOK(t) { showMsg('success', t); }
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+async function spFetch(url, opts = {}) {
+  return fetch(url, { ...opts, headers: { 'Authorization': `Bearer ${accessToken}`, ...(opts.headers || {}) } });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INIT
+// FIX D-01: initialize queuedTrackIds from Firebase on start
+// to prevent duplicate adds after admin tab reload
+// ─────────────────────────────────────────────────────────────────────────────
+async function init() {
+  const p     = new URLSearchParams(location.search);
+  const code  = p.get('code');
+  const err   = p.get('error');
+  const state = p.get('state');
+
+  if (err) { setS('❌','Login abgebrochen', err); showMsg('error','❌ ' + err); return; }
+
+  if (code) {
+    const savedState = localStorage.getItem('pkce_s') || sessionStorage.getItem('pkce_s');
+    if (!savedState) {
+      setS('❌','Ungültige Anfrage','Bitte Login normal starten');
+      showMsg('error','❌ Ungültige Anfrage.');
+      return;
+    }
+    await handleCode(code, state);
+    return;
+  }
+
+  await loadStatus();
+  startQueueMonitor();
+
+  const snap = await db.collection('config').doc('spotify').get();
+  if (snap.exists && snap.data().expires > Date.now()) {
+    accessToken = snap.data().token;
+
+    // FIX D-01: pre-fill queuedTrackIds with current Firebase queue
+    // so we don't re-add songs that were already sent to Spotify before reload
+    const qSnap = await db.collection('state').doc('queue').get();
+    if (qSnap.exists) {
+      queuedTrackIds = (qSnap.data().tracks || []).map(t => t.id);
+    }
+
+    startAutoRefresh();
+    startPoll();
+    await startHeartbeat();
+    await loadDevices();
+    startSingletonCheck(); // FIX D-06
+  }
+}
+
+// Entry point
+(function() {
+  const p             = new URLSearchParams(location.search);
+  const hasSavedState = localStorage.getItem('pkce_s') || sessionStorage.getItem('pkce_s');
+  const isRealCB      = (p.has('code') || p.has('error')) && hasSavedState;
+  if (isRealCB || sessionStorage.getItem('admin_ok') === '1') showAdminPanel();
+})();
+</script>
+</body>
+</html>
