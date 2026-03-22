@@ -321,7 +321,7 @@ async function doSearch(){
   document.getElementById('divider').style.display='block';
   list.innerHTML='';dots.style.display='flex';
   try{
-    const res=await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=15`,{headers:{'Authorization':`Bearer ${accessToken}`},signal:searchController.signal});
+    const res=await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=10`,{headers:{'Authorization':`Bearer ${accessToken}`},signal:searchController.signal});
     dots.style.display='none';
     if(res.status===401){setStatus('offline','Verbindung abgelaufen – Admin informieren');return;}
     if(res.status===400){
