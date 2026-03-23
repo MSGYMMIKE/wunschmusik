@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎛️ Studio Control</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#090909;color:#f2f0ec;font-family:'DM Sans',system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding-bottom:40px}
+
+  /* Gate */
+  #gateWrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;width:100%;max-width:360px;text-align:center}
+  .gate-logo{font-family:'Bebas Neue',sans-serif;font-size:40px;letter-spacing:3px;background:linear-gradient(135deg,#1DB954,#4dff91);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px}
+  .gate-sub{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#444;margin-bottom:28px}
+  .gate-input{width:100%;background:#111;border:1.5px solid #2a2a2a;border-radius:12px;padding:14px 18px;font-size:16px;font-family:'DM Sans',sans-serif;color:#f0f0f0;outline:none;margin-bottom:10px;text-align:center;transition:border-color .2s}
+  .gate-input:focus{border-color:#1DB954}
+  .gate-err{color:#e05252;font-size:12px;margin-bottom:10px;min-height:18px}
+  .gate-btn{width:100%;background:#1DB954;color:#000;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;transition:background .2s}
+  .gate-btn:hover{background:#22e566}
+  .gate-btn:disabled{opacity:.5;cursor:not-allowed}
+
+  /* Header */
+  header{width:100%;max-width:600px;padding:32px 20px 16px;text-align:center}
+  .logo{font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:3px;background:linear-gradient(135deg,#1DB954,#4dff91);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:4px}
+  .subtitle{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#444}
+
+  /* Main */
+  #appWrap{display:none;flex-direction:column;align-items:center;width:100%}
+  .main{width:100%;max-width:600px;padding:0 20px;display:flex;flex-direction:column;gap:14px}
+
+  /* Cards */
+  .card{background:#111;border:1px solid #222;border-radius:16px;padding:18px 20px}
+  .card-title{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#555;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+  .card-title span{font-size:14px}
+
+  /* Now Playing */
+  .now-playing{background:linear-gradient(135deg,#0d2b1a,#0a1f12);border:1px solid rgba(29,185,84,.25);border-radius:14px;padding:14px 18px;display:flex;align-items:center;gap:12px}
+  .np-art{width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;background:#222}
+  .np-info{flex:1;min-width:0}
+  .np-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#1DB954;margin-bottom:3px}
+  .np-name{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .np-artist{font-size:12px;color:#777;margin-top:2px}
+  .np-pulse{width:10px;height:10px;background:#1DB954;border-radius:50%;flex-shrink:0;animation:pulse 1.5s ease-in-out infinite}
+  .np-paused{width:10px;height:10px;background:#f0c040;border-radius:50%;flex-shrink:0}
+
+  /* Playback controls */
+  .controls{display:flex;gap:10px;align-items:center;justify-content:center;margin-top:14px}
+  .ctrl-btn{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:12px 18px;cursor:pointer;color:#ddd;font-size:20px;transition:all .2s;flex:1;display:flex;align-items:center;justify-content:center;gap:6px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600}
+  .ctrl-btn:hover:not(:disabled){border-color:#1DB954;color:#1DB954;background:#0d1f12}
+  .ctrl-btn:active:not(:disabled){transform:scale(.97)}
+  .ctrl-btn:disabled{opacity:.35;cursor:not-allowed}
+  .ctrl-btn.primary{background:#1DB954;color:#000;border-color:#1DB954;font-size:18px;flex:0 0 60px;padding:12px}
+  .ctrl-btn.primary:hover:not(:disabled){background:#22e566;border-color:#22e566}
+  .ctrl-btn.danger{border-color:rgba(224,82,82,.3);color:#e05252}
+  .ctrl-btn.danger:hover:not(:disabled){background:rgba(224,82,82,.08);border-color:#e05252}
+
+  /* Volume */
+  .vol-wrap{display:flex;align-items:center;gap:12px;margin-top:4px}
+  .vol-icon{font-size:18px;flex-shrink:0;width:24px;text-align:center}
+  .vol-slider{flex:1;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;background:linear-gradient(to right,#1DB954 var(--pct,50%),#2a2a2a var(--pct,50%));outline:none;cursor:pointer}
+  .vol-slider::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#1DB954;cursor:pointer;border:2px solid #090909;box-shadow:0 0 0 2px rgba(29,185,84,.3)}
+  .vol-slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#1DB954;cursor:pointer;border:2px solid #090909}
+  .vol-value{font-size:13px;font-weight:700;color:#1DB954;width:36px;text-align:right;flex-shrink:0}
+
+  /* Quick volume buttons */
+  .vol-presets{display:flex;gap:6px;margin-top:10px}
+  .vol-preset{flex:1;background:#0a0a0a;border:1px solid #1a1a1a;border-radius:8px;padding:7px;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;color:#777;cursor:pointer;transition:all .2s;text-align:center}
+  .vol-preset:hover{border-color:#1DB954;color:#1DB954}
+  .vol-preset.active{background:rgba(29,185,84,.1);border-color:#1DB954;color:#1DB954}
+
+  /* Queue */
+  .queue-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #1a1a1a;animation:fadeIn .2s ease both}
+  .queue-item:last-child{border-bottom:none}
+  .q-num{color:#1DB954;font-family:'Bebas Neue',sans-serif;font-size:18px;width:18px;flex-shrink:0;line-height:1}
+  .q-art{width:36px;height:36px;border-radius:5px;object-fit:cover;background:#222;flex-shrink:0}
+  .q-info{flex:1;min-width:0}
+  .q-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .q-meta{font-size:10px;color:#555;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .q-by{color:#1DB954;font-weight:600}
+  .q-del{background:none;border:none;color:#333;font-size:18px;cursor:pointer;padding:0 4px;transition:color .2s;flex-shrink:0;line-height:1}
+  .q-del:hover{color:#e05252}
+  .q-empty{color:#333;font-size:12px;text-align:center;padding:16px 0}
+
+  .clear-all{background:none;border:1px solid rgba(224,82,82,.25);border-radius:8px;padding:7px 14px;color:#e05252;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;opacity:.7;transition:all .2s}
+  .clear-all:hover{opacity:1;background:rgba(224,82,82,.08)}
+
+  /* Status */
+  .status-pill{display:inline-flex;align-items:center;gap:6px;background:#0a0a0a;border:1px solid #1a1a1a;border-radius:100px;padding:5px 12px;font-size:11px;color:#555;margin-bottom:14px}
+  .status-dot{width:6px;height:6px;border-radius:50%;background:#333}
+  .status-pill.online .status-dot{background:#1DB954;animation:blink 3s infinite}
+  .status-pill.online{color:#1DB954;border-color:rgba(29,185,84,.2);background:rgba(29,185,84,.05)}
+
+  .msg{padding:10px 14px;border-radius:10px;font-size:12px;text-align:left;line-height:1.5;margin-top:4px}
+  .msg.err{color:#e05252;background:rgba(224,82,82,.06);border:1px solid rgba(224,82,82,.2)}
+  .msg.ok{color:#1DB954;background:rgba(29,185,84,.06);border:1px solid rgba(29,185,84,.2)}
+
+  .spin-i{display:inline-block;width:12px;height:12px;border:2px solid #333;border-top-color:#1DB954;border-radius:50%;animation:spin .7s linear infinite;margin-right:6px;vertical-align:middle}
+
+  .divider{border:none;border-top:1px solid #1a1a1a;margin:4px 0}
+
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.75)}}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+
+<!-- GATE -->
+<div id="gateWrap">
+  <div class="gate-logo">🎛️ STUDIO CONTROL</div>
+  <div class="gate-sub">Zugangscode</div>
+  <div class="gate-err" id="gateErr"></div>
+  <input type="password" class="gate-input" id="gateInput" placeholder="••••••" maxlength="30" autocomplete="current-password"/>
+  <button class="gate-btn" id="gateBtn" onclick="checkGate()">Weiter →</button>
+</div>
+
+<!-- APP -->
+<div id="appWrap">
+  <header>
+    <div class="logo">🎛️ STUDIO CONTROL</div>
+    <div class="subtitle">Playback & Warteschlange</div>
+  </header>
+
+  <div class="main">
+
+    <!-- Status -->
+    <div style="text-align:center">
+      <div class="status-pill" id="statusPill">
+        <div class="status-dot"></div>
+        <span id="statusText">Verbinde…</span>
+      </div>
+    </div>
+
+    <!-- Now Playing -->
+    <div class="card">
+      <div class="card-title"><span>▶</span> Wird gespielt</div>
+      <div id="npWrap">
+        <div style="color:#333;font-size:13px;text-align:center;padding:12px 0">Nichts spielt gerade</div>
+      </div>
+
+      <!-- Playback Controls -->
+      <div class="controls" id="controls">
+        <button class="ctrl-btn" id="btnPrev" onclick="spotifyPrev()" title="Vorheriger Song" disabled>⏮</button>
+        <button class="ctrl-btn primary" id="btnPlayPause" onclick="togglePlayPause()" disabled>⏸</button>
+        <button class="ctrl-btn" id="btnNext" onclick="spotifyNext()" title="Nächster Song" disabled>⏭</button>
+      </div>
+      <div id="ctrlMsg"></div>
+    </div>
+
+    <!-- Volume -->
+    <div class="card">
+      <div class="card-title"><span>🔊</span> Lautstärke</div>
+      <div class="vol-wrap">
+        <div class="vol-icon" id="volIcon">🔊</div>
+        <input type="range" class="vol-slider" id="volSlider" min="0" max="100" value="50"
+          oninput="onVolInput(this.value)" onchange="setVolume(this.value)" style="--pct:50%" disabled/>
+        <div class="vol-value" id="volValue">50%</div>
+      </div>
+      <div class="vol-presets">
+        <button class="vol-preset" onclick="setVolume(25)" disabled>25%</button>
+        <button class="vol-preset" onclick="setVolume(50)" disabled>50%</button>
+        <button class="vol-preset" onclick="setVolume(75)" disabled>75%</button>
+        <button class="vol-preset" onclick="setVolume(100)" disabled>100%</button>
+      </div>
+    </div>
+
+    <!-- Queue -->
+    <div class="card">
+      <div class="card-title" style="justify-content:space-between">
+        <span style="display:flex;align-items:center;gap:8px"><span>🎵</span> Warteschlange</span>
+        <button class="clear-all" onclick="clearAllQueue()">Alles löschen</button>
+      </div>
+      <div id="queueList"><div class="q-empty">Keine Songs in der Warteschlange</div></div>
+    </div>
+
+    <!-- Back link -->
+    <a href="https://wunschmusik.onrender.com/admin.html"
+       style="text-align:center;color:#444;font-size:12px;text-decoration:none;padding:4px 0">
+      → Zum Haupt-Admin
+    </a>
+
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+// Same password as admin: studio2024
+const CTRL_HASH = '0daab506bc7b67801525e210c0a0325f8296bac8485d75c7d5466425abb7de0a';
+
+firebase.initializeApp({
+  apiKey:     'AIzaSyDquSCF2mwYMnsdEdsCXF-amq0nk-ZbvvQ',
+  authDomain: 'msgym-d2a85.firebaseapp.com',
+  projectId:  'msgym-d2a85'
+});
+const db = firebase.firestore();
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let accessToken  = null;
+let isPlaying    = false;
+let currentVol   = 50;
+let deviceId     = null;
+let unsubQueue   = null;
+let unsubToken   = null;
+let unsubNP      = null;
+let pollTimer    = null;
+let volDebounce  = null;
+
+// ── GATE ──────────────────────────────────────────────────────────────────────
+document.getElementById('gateInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkGate();
+});
+
+async function checkGate() {
+  const btn = document.getElementById('gateBtn');
+  const val = document.getElementById('gateInput').value;
+  if (!val || btn.disabled) return;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin-i"></span>Prüfe…';
+  try {
+    const buf  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(val));
+    const hash = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,'0')).join('');
+    if (hash === CTRL_HASH) {
+      localStorage.setItem('ctrl_ok','1');
+      showApp();
+    } else {
+      document.getElementById('gateErr').textContent = '❌ Falscher Code';
+      document.getElementById('gateInput').value = '';
+      document.getElementById('gateInput').focus();
+      btn.disabled = false; btn.textContent = 'Weiter →';
+    }
+  } catch(e) {
+    document.getElementById('gateErr').textContent = '❌ Fehler – neu laden';
+    btn.disabled = false; btn.textContent = 'Weiter →';
+  }
+}
+
+function showApp() {
+  document.getElementById('gateWrap').style.display = 'none';
+  document.getElementById('appWrap').style.display  = 'flex';
+  init();
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+async function init() {
+  // Load token from Firebase
+  try {
+    const snap = await db.collection('config').doc('spotify').get();
+    if (snap.exists && snap.data().expires > Date.now()) {
+      accessToken = snap.data().token;
+      setStatus(true);
+      startListeners();
+      startPoll();
+      await loadDevices();
+    } else {
+      setStatus(false, 'Kein Token – Haupt-Admin verbinden');
+    }
+  } catch(e) {
+    setStatus(false, 'Firebase Fehler');
+  }
+}
+
+function startListeners() {
+  // Token updates
+  if (unsubToken) unsubToken();
+  unsubToken = db.collection('config').doc('spotify').onSnapshot(snap => {
+    if (!snap.exists) return;
+    const d = snap.data();
+    if (d.token && d.expires > Date.now()) {
+      accessToken = d.token;
+      setStatus(true);
+      // Restart poll if it was stopped (e.g. after 401)
+      if (!pollTimer) startPoll();
+    } else {
+      setStatus(false, 'Token abgelaufen');
+    }
+  });
+
+  // Queue updates from Firebase
+  if (unsubQueue) unsubQueue();
+  unsubQueue = db.collection('state').doc('queue').onSnapshot(snap => {
+    const tracks = snap.exists ? (snap.data().tracks || []) : [];
+    renderQueue(tracks);
+  });
+}
+
+// Auto-reconnect on network restore
+window.addEventListener('online', async () => {
+  if (accessToken) {
+    setStatus(true);
+    startPoll();
+    showCtrlMsg('ok', '✅ Verbindung wiederhergestellt');
+  } else {
+    // Try to reload token from Firebase
+    init();
+  }
+});
+window.addEventListener('offline', () => {
+  setStatus(false, 'Keine Verbindung – wird automatisch wiederverbunden…');
+});
+
+// ── POLL PLAYER ───────────────────────────────────────────────────────────────
+function startPoll() {
+  clearInterval(pollTimer);
+  pollPlayer();
+  pollTimer = setInterval(pollPlayer, 4000);
+}
+
+async function pollPlayer() {
+  if (!accessToken) return;
+  try {
+    const res = await spFetch('https://api.spotify.com/v1/me/player');
+
+    // P1-Fix D-06: explicit 401 handler with clear message
+    if (res.status === 401) {
+      clearInterval(pollTimer); // D-03: stop polling with invalid token
+      setStatus(false, 'Token abgelaufen – Haupt-Admin neu verbinden');
+      setCtrlEnabled(false);
+      return;
+    }
+
+    if (res.status === 204 || !res.ok) {
+      renderNP(null);
+      setCtrlEnabled(false);
+      return;
+    }
+    const data = await res.json();
+    if (!data?.item) { renderNP(null); setCtrlEnabled(false); return; }
+
+    isPlaying  = data.is_playing;
+    currentVol = data.device?.volume_percent ?? currentVol;
+    deviceId   = data.device?.id || null;
+
+    renderNP(data.item, data.is_playing);
+    setCtrlEnabled(true);
+    updateVolUI(currentVol);
+
+    // P1-Fix D-05 + P2-Fix D-06: enable slider AND presets only after first successful poll
+    const slider = document.getElementById('volSlider');
+    if (slider.disabled) {
+      slider.disabled = false;
+      document.querySelectorAll('.vol-preset').forEach(b => b.disabled = false);
+    }
+
+  } catch(e) {}
+}
+
+// ── DEVICES ───────────────────────────────────────────────────────────────────
+async function loadDevices() {
+  if (!accessToken) return;
+  try {
+    const res  = await spFetch('https://api.spotify.com/v1/me/player/devices');
+    if (!res.ok) return;
+    const data = await res.json();
+    const active = (data.devices || []).find(d => d.is_active);
+    if (active) deviceId = active.id;
+  } catch(e) {}
+}
+
+// ── PLAYBACK CONTROLS ─────────────────────────────────────────────────────────
+async function togglePlayPause() {
+  if (!accessToken) return;
+  setCtrlEnabled(false);
+  let hadError = false;
+  try {
+    const endpoint = isPlaying ? 'pause' : 'play';
+    const url = deviceId
+      ? `https://api.spotify.com/v1/me/player/${endpoint}?device_id=${deviceId}`
+      : `https://api.spotify.com/v1/me/player/${endpoint}`;
+    const res = await spFetch(url, { method: 'PUT' });
+    if (res.status === 401) {
+      setStatus(false, 'Token abgelaufen – Haupt-Admin neu verbinden');
+      hadError = true; // D-02: keep buttons disabled on 401
+    } else if (res.status === 204 || res.ok) {
+      isPlaying = !isPlaying;
+      updatePlayBtn();
+      setTimeout(pollPlayer, 800);
+    } else {
+      showCtrlMsg('error', '❌ Fehler – bitte erneut versuchen');
+    }
+  } catch(e) { showCtrlMsg('error', '❌ ' + e.message); }
+  if (!hadError) setCtrlEnabled(true); // D-02: only re-enable if no 401
+}
+
+async function spotifyNext() {
+  if (!accessToken) return;
+  setCtrlEnabled(false);
+  try {
+    const url = deviceId
+      ? `https://api.spotify.com/v1/me/player/next?device_id=${deviceId}`
+      : 'https://api.spotify.com/v1/me/player/next';
+    const res = await spFetch(url, { method: 'POST' });
+    if (res.status === 401) {
+      setStatus(false, 'Token abgelaufen – Haupt-Admin neu verbinden');
+    } else if (!res.ok && res.status !== 204) {
+      showCtrlMsg('error', '❌ Skip fehlgeschlagen – erneut versuchen');
+    } else {
+      setTimeout(pollPlayer, 1000);
+    }
+  } catch(e) { showCtrlMsg('error', '❌ ' + e.message); }
+  setTimeout(() => setCtrlEnabled(true), 1500);
+}
+
+async function spotifyPrev() {
+  if (!accessToken) return;
+  setCtrlEnabled(false);
+  try {
+    const url = deviceId
+      ? `https://api.spotify.com/v1/me/player/previous?device_id=${deviceId}`
+      : 'https://api.spotify.com/v1/me/player/previous';
+    const res = await spFetch(url, { method: 'POST' });
+    if (res.status === 401) {
+      setStatus(false, 'Token abgelaufen – Haupt-Admin neu verbinden');
+    } else if (!res.ok && res.status !== 204) {
+      showCtrlMsg('error', '❌ Zurück fehlgeschlagen – erneut versuchen');
+    } else {
+      setTimeout(pollPlayer, 1000);
+    }
+  } catch(e) { showCtrlMsg('error', '❌ ' + e.message); }
+  setTimeout(() => setCtrlEnabled(true), 1500);
+}
+
+// ── VOLUME ────────────────────────────────────────────────────────────────────
+function onVolInput(val) {
+  updateVolUI(parseInt(val));
+}
+
+function updateVolUI(val) {
+  const v = parseInt(val);
+  const slider = document.getElementById('volSlider');
+  slider.value = v;
+  slider.style.setProperty('--pct', v + '%');
+  document.getElementById('volValue').textContent = v + '%';
+  document.getElementById('volIcon').textContent =
+    v === 0 ? '🔇' : v < 30 ? '🔈' : v < 70 ? '🔉' : '🔊';
+
+  // Highlight active preset
+  document.querySelectorAll('.vol-preset').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.textContent) === v);
+  });
+}
+
+async function setVolume(val) {
+  val = parseInt(val);
+  updateVolUI(val);
+  currentVol = val;
+
+  // Debounce API calls while slider is dragged
+  clearTimeout(volDebounce);
+  volDebounce = setTimeout(async () => {
+    if (!accessToken) return;
+    try {
+      const url = deviceId
+        ? `https://api.spotify.com/v1/me/player/volume?volume_percent=${val}&device_id=${deviceId}`
+        : `https://api.spotify.com/v1/me/player/volume?volume_percent=${val}`;
+      const res = await spFetch(url, { method: 'PUT' });
+      if (res.status !== 204 && !res.ok) {
+        showCtrlMsg('error', '❌ Lautstärke konnte nicht gesetzt werden (Premium erforderlich)');
+      }
+    } catch(e) { showCtrlMsg('error', '❌ ' + e.message); }
+  }, 300);
+}
+
+// ── QUEUE ─────────────────────────────────────────────────────────────────────
+function renderQueue(tracks) {
+  const list = document.getElementById('queueList');
+  if (!tracks.length) {
+    list.innerHTML = '<div class="q-empty">Keine Songs in der Warteschlange</div>';
+    return;
+  }
+  list.innerHTML = tracks.map((t, i) => `
+    <div class="queue-item" style="animation-delay:${i*30}ms">
+      <div class="q-num">${i + 1}</div>
+      <img class="q-art" src="${esc(t.album?.images?.[2]?.url || '')}" alt="" loading="lazy"/>
+      <div class="q-info">
+        <div class="q-name">${esc(t.name)}</div>
+        <div class="q-meta">
+          ${esc(t.artists?.map(a => a.name).join(', '))}
+          ${t.wishedBy ? ` · <span class="q-by">von ${esc(t.wishedBy)}</span>` : ''}
+        </div>
+      </div>
+      <button class="q-del" onclick="removeFromQueue(${i}, '${esc(t.id)}')" title="Entfernen">×</button>
+    </div>`).join('');
+}
+
+// P1-Fix D-02/H-01: atomar via Transaction + Double-Click-Schutz per Track-ID
+let removingIds = new Set();
+async function removeFromQueue(i, trackId) {
+  if (removingIds.has(trackId)) return;
+  removingIds.add(trackId);
+  try {
+    const ref = db.collection('state').doc('queue');
+    await db.runTransaction(async tx => {
+      const snap   = await tx.get(ref);
+      if (!snap.exists) return;
+      // Remove by ID not by index to avoid race conditions
+      const tracks = (snap.data().tracks || []).filter(t => t.id !== trackId);
+      tx.set(ref, { tracks, updated: Date.now() });
+    });
+    showCtrlMsg('ok', '✓ Song entfernt');
+  } catch(e) {
+    showCtrlMsg('error', '❌ Fehler beim Entfernen – erneut versuchen');
+  } finally {
+    removingIds.delete(trackId);
+  }
+}
+
+async function clearAllQueue() {
+  const confirmed = await showConfirm('Gesamte Warteschlange löschen?\nBetrifft alle Mitglieder sofort.');
+  if (!confirmed) return;
+  try {
+    await db.collection('state').doc('queue').set({ tracks: [], updated: Date.now() });
+  } catch(e) { showCtrlMsg('error', '❌ Fehler beim Löschen'); }
+}
+
+// ── NOW PLAYING ───────────────────────────────────────────────────────────────
+function renderNP(item, playing) {
+  const wrap = document.getElementById('npWrap');
+  if (!item) {
+    wrap.innerHTML = '<div style="color:#333;font-size:13px;text-align:center;padding:12px 0">Nichts spielt gerade</div>';
+    return;
+  }
+  const art    = item.album?.images?.[1]?.url || '';
+  const name   = item.name;
+  const artist = item.artists?.map(a => a.name).join(', ') || '';
+  wrap.innerHTML = `<div class="now-playing">
+    <img class="np-art" src="${esc(art)}" alt=""/>
+    <div class="np-info">
+      <div class="np-label">${playing ? '▶ Wird gespielt' : '⏸ Pausiert'}</div>
+      <div class="np-name">${esc(name)}</div>
+      <div class="np-artist">${esc(artist)}</div>
+    </div>
+    <div class="${playing ? 'np-pulse' : 'np-paused'}"></div>
+  </div>`;
+  updatePlayBtn();
+}
+
+function updatePlayBtn() {
+  const btn = document.getElementById('btnPlayPause');
+  btn.textContent = isPlaying ? '⏸' : '▶';
+  btn.title = isPlaying ? 'Pause' : 'Fortsetzen';
+}
+
+// ── UI HELPERS ────────────────────────────────────────────────────────────────
+function setStatus(online, msg) {
+  const pill = document.getElementById('statusPill');
+  const text = document.getElementById('statusText');
+  pill.className = 'status-pill ' + (online ? 'online' : '');
+  text.textContent = online ? 'Verbunden' : (msg || 'Nicht verbunden');
+}
+
+function setCtrlEnabled(on) {
+  ['btnPlayPause','btnNext','btnPrev'].forEach(id => {
+    document.getElementById(id).disabled = !on;
+  });
+}
+
+let ctrlMsgTimer;
+function showCtrlMsg(type, text) {
+  const el = document.getElementById('ctrlMsg');
+  el.className = 'msg ' + (type === 'error' ? 'err' : 'ok');
+  el.textContent = text;
+  clearTimeout(ctrlMsgTimer);
+  ctrlMsgTimer = setTimeout(() => { el.textContent = ''; el.className = ''; }, 4000);
+}
+
+function showConfirm(message) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px';
+    overlay.innerHTML = `
+      <div style="background:#1a1a1a;border:1px solid #333;border-radius:16px;padding:24px;max-width:300px;width:100%;text-align:center">
+        <div style="font-size:13px;color:#ddd;margin-bottom:20px;line-height:1.7;white-space:pre-line">${esc(message)}</div>
+        <div style="display:flex;gap:10px">
+          <button id="cNo"  style="flex:1;padding:11px;border-radius:10px;border:1px solid #333;background:none;color:#777;font-family:inherit;font-size:13px;cursor:pointer">Abbrechen</button>
+          <button id="cYes" style="flex:1;padding:11px;border-radius:10px;border:none;background:#e05252;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">Löschen</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#cYes').onclick = () => { document.body.removeChild(overlay); resolve(true); };
+    overlay.querySelector('#cNo').onclick  = () => { document.body.removeChild(overlay); resolve(false); };
+  });
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+async function spFetch(url, opts = {}) {
+  return fetch(url, { ...opts, headers: { 'Authorization': `Bearer ${accessToken}`, ...(opts.headers || {}) } });
+}
+
+// Entry point
+(function() {
+  if (localStorage.getItem('ctrl_ok') === '1') showApp();
+})();
+</script>
+</body>
+</html>
